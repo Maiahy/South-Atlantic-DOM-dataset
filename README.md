@@ -20,7 +20,7 @@ A total of **367 solid-phase extracted DOM samples** collected at **107 sampling
 
 Each sample was:
 
-- analyzed in **triplicate in full-scan MS mode** to assess analytical reproducibility;
+- analyzed in **triplicate in full-scan MS mode**;
 - analyzed once in **data-dependent acquisition (DDA) mode** to acquire MS/MS spectra for compound annotation;
 - accompanied by regular injections of **pooled quality control (QC) samples** throughout the analytical sequences.
 
@@ -38,7 +38,7 @@ The workflow implemented in this repository includes:
 2. Alignment and merging of analytical batches.
 3. Integration of full-scan and DDA feature tables using **MetabCombiner**.
 4. Feature annotation using **CAMERA** and **GNPS molecular networking**.
-5. Filtering based on blank samples, pooled QCs, and replicate reproducibility.
+5. Filtering and cleaning based on blank samples, pooled QCs, and replicate reproducibility.
 6. Additional quality control analyses and technical validation used in the manuscript.
 
 ---
