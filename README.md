@@ -43,25 +43,9 @@ The workflow implemented in this repository includes:
 
 ---
 
-## 📂 Repository structure
+## 📖 Citation
 
-The repository contains scripts for:
+If you use this repository or the associated dataset, please cite:
 
-- metadata curation;
-- LC–MS preprocessing;
-- batch alignment and integration;
-- feature annotation;
-- quality control and filtering;
-- statistical analyses;
-- figure generation.
-
-A typical folder organization is:
-
-```text
-1_Metadata/
-2_Data_preprocessing/
-3_Data_integration/
-4_Quality_control/
-5_Annotation/
-6_Figures/
-7_Submission/
+> Henry, M. *et al.*  
+> **A metabolomics dataset of plankton exometabolomes and dissolved organic compounds in the South Atlantic Ocean**.
