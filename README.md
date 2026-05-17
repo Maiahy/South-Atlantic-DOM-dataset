@@ -1,13 +1,13 @@
 # South-Atlantic-DOM-dataset
 
 <p align="center">
-  <img src="2022%2002%2006%20navigation%20sous%20voiles%20devant%20iceberg%20Tasmania_drone_DJI_0032%C2%A9Ma%C3%A9va%20Bardy%20-%20Fondation%20Tara%20Ocean.jpg"
+  <img src="./2022%2002%2006%20navigation%20sous%20voiles%20devant%20iceberg%20Tasmania_drone_DJI_0032%C2%A9Mae%CC%81va%20Bardy%20-%20Fondation%20Tara%20Ocean.jpg"
        alt="Tara sailing in front of an Antarctic iceberg"
        width="900">
 </p>
 
 <p align="center">
-  <em>Tara sailing in front of an Antarctic iceberg in the Southern Ocean.
+  <em>Tara sailing in front of an Antarctic iceberg in the Southern Ocean.<br>
   Photo credit: Maéva Bardy / Fondation Tara Ocean.</em>
 </p>
 
