@@ -1,2 +1,2 @@
-# South-Atlantic-DOM-metabolomics
+# South-Atlantic-DOM-dataset
 Complete analysis workflow and scripts used to produce the dissolved organic matter (DOM) dataset from the Tara Microbiomes–AtlantECO expedition.
