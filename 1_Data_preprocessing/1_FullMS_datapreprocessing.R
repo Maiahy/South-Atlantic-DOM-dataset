@@ -1,5 +1,12 @@
 
 #Full MS dataset 
+
+#this code is based on the work of different groups, for more information please consult:
+#https://bioconductor.org/packages/release/bioc/vignettes/xcms/inst/doc/xcms.html
+#https://github.com/DorresteinLaboratory/XCMS3_FeatureBasedMN/blob/master/XCMS3_Preprocessing.Rmd
+#https://pietrofranceschi.github.io/Metabolomics_lectures/
+#https://rformassspectrometry.github.io/Metabonaut/articles/a-end-to-end-untargeted-metabolomics.html
+
 #####1) Packages loading ####
 
 #install.packages("BiocManager")
