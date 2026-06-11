@@ -46,11 +46,10 @@ The dataset was generated from **15 analytical batches**.
 The workflow implemented in this repository includes:
 
 1. Preprocessing of full-scan and DDA datasets using the R package **XCMS**.
-2. Alignment and merging of analytical batches.
-3. Integration of full-scan and DDA feature tables using **MetabCombiner**.
-4. Feature annotation using **CAMERA** and **GNPS molecular networking**.
-5. Filtering and cleaning based on blank samples, pooled QCs, and replicate reproducibility.
-6. Additional quality control analyses and technical validation used in the manuscript.
+2. Merging of analytical batches using **MetabCombiner**.
+3. Feature annotation using **CAMERA** and **GNPS molecular networking**.
+4. Filtering and cleaning based on blank samples, pooled QCs, and replicate reproducibility.
+5. Additional quality control analyses and technical validation used in the manuscript.
 
 ---
 
