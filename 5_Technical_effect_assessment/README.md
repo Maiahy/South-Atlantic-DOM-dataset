@@ -7,8 +7,7 @@ This repository contains the code used to evaluate the reproducibility of techni
 The workflow includes:
 
 - Identification of samples showing high dispersion among technical triplicates using distances to sample centroids in Bray–Curtis PCoA space.
-- Evaluation of the impact of removing highly dispersed samples.
-- Comparison of PCoA structures before and after averaging technical triplicates.
+- Evaluation of the impact of removing highly and  dispersed samples and averaging technical triplicates.
 - Assessment of the influence of evaporation status, in-lab operator, and sampling latitude on sample distribution.
 
 ## Scripts
@@ -36,9 +35,3 @@ Evaluation of technical and environmental covariates using only samples processe
 - `Figure_SX_PCoA_processing.pdf`
 - `Figure_SX_PCoA_covariantsAf.pdf`
 - `Figure_SX_PCoA_covariantsBf.pdf`
-
-## Data availability
-
-Raw data and metadata are available through MetaboLights:
-
-https://www.ebi.ac.uk/metabolights/MTBLS14508
