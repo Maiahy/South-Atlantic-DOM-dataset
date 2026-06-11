@@ -1,6 +1,3 @@
-#PCA in R
-
-
 ####1) Preparation of the data ####
 
 #Environment:
