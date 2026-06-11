@@ -1,0 +1,680 @@
+
+#Enivronment:
+
+library(here)
+base_path <- here()
+before_serrf_path <- file.path(base_path, "1_Files_before_SERRF")
+serrf_path        <- file.path(base_path, "2_Files_SERRF")
+output_path       <- file.path(base_path, "3_Files_after_cleaning")
+dir.create(output_path, recursive = TRUE, showWarnings = FALSE)
+
+#Loading of the packages:
+library(pander)
+library(magrittr)
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(tidyr)
+library(dplyr)
+
+
+#####1) SERRF data upload ####
+
+#Upload the data matrix obtained BEFORE SERRF
+load(
+  file.path(
+    before_serrf_path,
+    "myEnvironment7_imputation2E5.RData"
+  )
+)
+
+DM_i4 = DM7_imputed
+
+#Join to the metadata
+DM7_imputed_annotated <- left_join(
+  DM7_imputed,
+  metadata_samples[, c("file_name", "ESSENTIAL_sample_type")],
+  by = "file_name"
+)
+
+#Check the number of samples by type:
+table(DM7_imputed_annotated$ESSENTIAL_sample_type)
+# Blank     QC    REF Sample 
+#81    110    101   1101
+
+#Upload the normalized matrix (after SERRF)
+serrf_out <- read.csv(
+  file.path(
+    serrf_path,
+    "normalized_by_SERRF.csv"
+  ),
+  header = TRUE,
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+#FT IDs to rownames
+rownames(serrf_out) <- serrf_out$label
+serrf_out$label <- NULL
+
+#Transpose so injections are rows and FT features are columns
+mat <- t(as.matrix(serrf_out))
+
+#Build final DM_i4a table
+DM_i4a <- data.frame(
+  file_name = rownames(mat),
+  as.data.frame(mat, check.names = FALSE, stringsAsFactors = FALSE),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+
+#Check for missing sample types: the blanks should be missing from the list
+#as they were removed before SERRF
+DM_i4a_annotated <- left_join(
+  DM_i4a,
+  metadata_samples[, c("file_name", "ESSENTIAL_sample_type")],
+  by = "file_name"
+)
+table(DM_i4a_annotated$ESSENTIAL_sample_type)
+#QC    REF Sample 
+#110    101   1101 
+
+#Check the file names associated to the SERRF normalized files (without blanks)
+file_names_normalized <- DM_i4a$file_name
+
+#Do the same for the file before SERRF normalization (with blanks)
+file_names_all <- DM_i4$file_name
+
+#Look at the difference between the two vectors: it should be the blanks!
+file_names_to_add <- setdiff(file_names_all, file_names_normalized)
+
+#Extract the rows corresponding to the blanks in the table obtained before SERRF
+DM_to_add <- DM_i4[DM_i4$file_name %in% file_names_to_add, ]
+
+#Check if the feature order is the same as in the table obtained after SERRF
+ft_cols <- grep("^FT", names(DM_i4), value = TRUE)
+DM_to_add <- DM_to_add[, c("file_name", ft_cols)]
+DM_i4a    <- DM_i4a[, c("file_name", ft_cols)]
+identical(names(DM_i4a), names(DM_to_add))
+check= data.frame(
+  DM_i4a = names(DM_i4a),
+  DM_to_add = names(DM_to_add),
+  identical = names(DM_i4a) == names(DM_to_add)
+)
+
+#Finally add the blanks to the SERRF table!
+DM_i5 <- rbind(DM_i4a, DM_to_add)
+
+#Order the files according to their file name
+DM_i5 <- DM_i5[order(DM_i5$file_name), ]
+
+#Security check: DO you have the blanks in your final table?
+DM_i5_annotated <- left_join(
+  DM_i5,
+  metadata_samples[, c("file_name", "ESSENTIAL_sample_type")],
+  by = "file_name"
+)
+table(DM_i5_annotated$ESSENTIAL_sample_type)
+
+#Blank     QC    REF Sample 
+#81    110    101   1101 
+
+#####2) Quality check of the normalization ####
+######2.a) intensities across REF ####
+
+#In this part, we will investigate the quality of the SERRF 
+#normalization through diverse plots.
+#First, we will check if when we plot the intensities of a given feature
+#within our pooled QC, this intensity appears more stable after SERRF than 
+#before, and if no artefact was generated.
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+#Keep only the pooled QC samples in the metadata
+qc_meta <- metadata_samples %>%
+  filter(ESSENTIAL_sample_type == "REF") %>%
+  select(file_name, Injection_order, batch_identifier)
+
+#Keep only the QC in the table generated before SERFF
+qc_dm3 <- DM_i4 %>%
+  filter(file_name %in% qc_meta$file_name) %>%
+  inner_join(qc_meta, by = "file_name")
+
+#Keep only the QC in the table generated after SERFF
+qc_dm5 <- DM_i5 %>%
+  filter(file_name %in% qc_meta$file_name) %>%
+  inner_join(qc_meta, by = "file_name")
+
+#Change to long format
+ft_cols <- grep("^FT", names(qc_dm3), value = TRUE)
+qc_dm3_long <- qc_dm3 %>%
+  pivot_longer(cols = all_of(ft_cols),
+               names_to = "Feature",
+               values_to = "Intensity") %>%
+  mutate(Normalized = "Before")
+
+qc_dm5_long <- qc_dm5 %>%
+  pivot_longer(cols = all_of(ft_cols),
+               names_to = "Feature",
+               values_to = "Intensity") %>%
+  mutate(Normalized = "After")
+
+#Link the data before normalization to the data after normalization
+qc_combined <- bind_rows(qc_dm3_long, qc_dm5_long) %>%
+  mutate(
+    Injection_order = as.numeric(Injection_order),
+    InterbatchGroup = "InterbatchQC1",
+    Group = paste0(InterbatchGroup, "_", Normalized)
+  )
+
+#Check
+if (nrow(qc_combined) == 0) {
+  stop("qc_combined est vide – vérifie ESSENTIAL_sample_type == 'REF' et les batchs.")
+}
+
+#Define the colors of the plot
+color_map <- c(
+  "InterbatchQC1_Before" = "#579ad1",
+  "InterbatchQC1_After"  = "#df6765"
+)
+
+
+#Create a PDF with one feature per page
+all_features <- sort(unique(qc_combined$Feature))
+n_pages <- length(all_features)
+
+if (n_pages == 0) {
+  stop("Aucune feature trouvée dans qc_combined – vérifie ft_cols et tes données.")
+}
+
+pdf(file.path(output_path, 
+              "QC_REF_before_after_SERRF_ALLfeatures_one_by_page_QC1.pdf"),
+              width = 10, 
+              height = 7)
+for (i in seq_along(all_features)) {
+  
+  feat_i <- all_features[i]
+  data_i <- qc_combined %>%
+    filter(Feature == feat_i)
+  
+  p <- ggplot(data_i, aes(x = Injection_order, y = Intensity)) +
+    geom_point(aes(color = Group), alpha = 0.7, size = 1.2) +
+    scale_color_manual(
+      values = color_map,
+      breaks = c("InterbatchQC1_Before",
+                 "InterbatchQC1_After"),
+      labels = c("InterbatchQC1 Before",
+                 "InterbatchQC1 After")
+    ) +
+    theme_minimal() +
+    labs(
+      title = paste0("QC Intensities for feature ", feat_i),
+      subtitle = paste0(
+        "Before vs After SERRF\n",
+        "Page ", i, " of ", n_pages
+      ),
+      x = "Injection Order",
+      y = "Intensity",
+      color = "QC / State"
+    ) +
+    theme(legend.position = "top")
+  
+  print(p)
+}
+
+dev.off()
+
+
+######2.b) TIC across QC before and after SERRF####
+
+#Calculate the sum of the intensities of all features within each QC:
+#For the dataset before SERRF normalization
+qc_tic_raw <- qc_dm3 %>%
+  rowwise() %>%
+  mutate(TIC = sum(c_across(all_of(ft_cols)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  select(file_name, Injection_order, TIC) %>%
+  mutate(Normalized = "Before")
+
+#And for the dataset after SERRF normalization!
+qc_tic_norm <- qc_dm5 %>%
+  rowwise() %>%
+  mutate(TIC = sum(c_across(all_of(ft_cols)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  select(file_name, Injection_order, TIC) %>%
+  mutate(Normalized = "After")
+
+#Combine both feature table
+tic_combined <- bind_rows(qc_tic_raw, qc_tic_norm)
+tic_combined$Injection_order <- as.numeric(tic_combined$Injection_order)
+
+#Plot the graph with the TIC
+pdf(file.path(output_path, 
+              "QC_features_before_after_SERRF_TIC.pdf"),
+              width = 14, 
+              height = 10)
+ggplot(tic_combined, aes(x = Injection_order, y = TIC, color = Normalized)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(values = c(
+    "Before" = "#579ad1",
+    "After"  = "#df6765"
+  )) +
+  geom_smooth(method = "loess", se = FALSE, span = 0.5) +
+  theme_minimal() +
+  labs(
+    title = "Total Ion Current (TIC) in pooled QC Samples",
+    subtitle = "Before vs After SERRF normalization",
+    x = "Injection Order",
+    y = "TIC (sum of all FT intensities)",
+    color = "Data"
+  )
+dev.off()
+
+colnames(metadata_samples)
+
+######2.c) PCA features before and after SERRF####
+
+######PCA BEFORE (REF samples) ####
+#Merge data + metadata
+qc_ref_meta <- metadata_samples %>%
+  filter(ESSENTIAL_sample_type == "REF") %>%
+  select(file_name, Injection_order)
+data_raw_REF <- DM_i4 %>%
+  inner_join(qc_ref_meta, by = "file_name")
+
+#Log transform your data prior to the PCA
+mat <- log2(as.matrix(data_raw_REF[, ft_cols]) + 1)
+
+#Compute the PCA (include centering and scaling)
+pca_model <- prcomp(mat, center = TRUE, scale. = TRUE)
+
+#Get PCA'S scores
+scores <- as.data.frame(pca_model$x[, 1:2])
+scores$file_name <- data_raw_REF$file_name
+scores$injection_order <- as.numeric(data_raw_REF$Injection_order)
+
+#Get PCA'S explained variance
+explained_var <- summary(pca_model)$importance[2,]
+pc1_var <- round(explained_var[1] * 100, 1)
+pc2_var <- round(explained_var[2] * 100, 1)
+
+#Plot the PCA
+p_before <- ggplot(scores, aes(x = PC1, y = PC2, color = injection_order)) +
+  
+  geom_point(size = 2, alpha = 0.8) +
+  
+  scale_color_viridis_c(option = "plasma") +
+  guides(color = guide_colorbar(barheight = 10))+
+  
+  labs(
+    title = "Before SERRF normalization",
+    x = paste0("PC1 (", pc1_var, "%)"),
+    y = paste0("PC2 (", pc2_var, "%)"),
+    color = "Injection order"
+  ) +
+  
+  theme_classic(base_size = 14) +
+  xlim(-100, 200) +
+  ylim(-50 , 150)+
+  
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    plot.title = element_text(face = "bold")
+  )
+
+p_before
+
+### 8. Export PDF
+pdf(file.path(output_path, 
+              "PCA_REF_BEFORE.pdf"),
+              width = 5, 
+              height = 5)
+print(p_before)
+dev.off()
+
+
+######PCA AFTER (REF samples) ######
+
+#Prepare REF metadata
+qc_ref_meta <- metadata_samples %>%
+  filter(ESSENTIAL_sample_type == "REF") %>%
+  select(file_name, Injection_order)
+
+#Define feature columns
+ft_cols <- grep("^FT", names(DM_i4), value = TRUE)
+
+#Merge data + metadata
+data_raw_REF <- DM_i5 %>%
+  inner_join(qc_ref_meta, by = "file_name")
+
+#Log transform before the PCA
+mat <- log2(as.matrix(data_raw_REF[, ft_cols]) + 1)
+
+#Compute the PCA
+pca_model <- prcomp(mat, center = TRUE, scale. = TRUE)
+summary(pca_model)
+
+#Get PCA's scores
+scores <- as.data.frame(pca_model$x[, 1:2])
+scores$file_name <- data_raw_REF$file_name
+scores$injection_order <- as.numeric(data_raw_REF$Injection_order)
+
+#Get PCA's explained variance
+explained_var <- summary(pca_model)$importance[2,]
+pc1_var <- round(explained_var[1] * 100, 1)
+pc2_var <- round(explained_var[2] * 100, 1)
+
+#Plot the PCA
+p_after <- ggplot(scores, aes(x = PC1, y = PC2, color = injection_order)) +
+  
+  geom_point(size = 2, alpha = 0.8) +
+  
+  scale_color_viridis_c(option = "plasma") +
+  guides(color = guide_colorbar(barheight = 10))+
+  
+  labs(
+    title = "After SERRF normalization",
+    x = paste0("PC1 (", pc1_var, "%)"),
+    y = paste0("PC2 (", pc2_var, "%)"),
+    color = "Injection order"
+  ) +
+  
+  theme_classic(base_size = 14) +
+  xlim(-100, 200) +
+  ylim(-50 , 150)+
+  
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    plot.title = element_text(face = "bold")
+  )
+p_after
+
+#Export the PDF
+pdf(file.path(output_path, 
+              "PCA_REF_AFTER.pdf"),
+              width = 5, 
+              height = 5)
+print(p_after)
+dev.off()
+
+#install.packages("patchwork")
+library("patchwork")
+
+pdf(file.path(output_path, 
+              "PCA_REF_BEFOREvsAFTER.pdf"),
+              width = 12, 
+              height = 5)
+p_before + p_after +
+  plot_annotation(tag_levels = "A")
+dev.off()
+
+
+#####3) RSD filtering####
+
+#Define the threshold you want to apply to the RSD of the dataset
+threshold <- 20  
+
+#Function to calculate the RSD
+calc_rsd <- function(x) {
+  x <- as.numeric(x)
+  if (mean(x, na.rm = TRUE) == 0) return(NA)
+  100 * sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE)
+}
+
+#Fonction to calculate the RSD by group!
+compute_rsd_summary <- function(data_matrix, metadata, group_var) {
+  metadata_sub <- metadata %>%
+    filter(ESSENTIAL_sample_type %in% c("QC", "REF")) %>%
+    select(file_name, ESSENTIAL_sample_type, ESSENTIAL_sample_id) %>%
+    mutate(group_id = ifelse(ESSENTIAL_sample_type == "REF", "REF", as.character(ESSENTIAL_sample_id)))
+  
+#Join data to metadata
+  data_joined <- inner_join(data_matrix, metadata_sub, by = "file_name")
+  #Create RSD Summary
+  rsd_summary <- data_joined %>%
+    group_by(group_id) %>%
+    summarise(across(all_of(ft_cols), calc_rsd)) %>%
+    pivot_longer(-group_id, names_to = "feature", values_to = "RSD") %>%
+    group_by(group_id) %>%
+    summarise(
+      average_RSD = mean(RSD, na.rm = TRUE),
+      n_below_20 = sum(RSD < threshold, na.rm = TRUE)
+    )
+  
+  return(rsd_summary)
+}
+
+#Apply the function to the raw data
+rsd_raw <- compute_rsd_summary(DM_i4, metadata_samples, "ESSENTIAL_sample_id") %>%
+  mutate(state = "Before")
+
+#Apply the function to the normalized data
+rsd_norm <- compute_rsd_summary(DM_i5, metadata_samples, "ESSENTIAL_sample_id") %>%
+  mutate(state = "After")
+
+#Fusion the results and print!
+rsd_compare <- bind_rows(rsd_raw, rsd_norm) %>%
+  arrange(group_id, state)
+
+print(rsd_compare)
+
+
+######3.b) RSD plot after SERRF and final correction####
+
+#Prepare the QCs metadata
+metadata_samples2 <- metadata_samples %>% 
+  select(file_name, ESSENTIAL_sample_id, biological_replicate)
+
+metadata_samples2$sample <- paste(metadata_samples2$ESSENTIAL_sample_id,
+                                  metadata_samples2$biological_replicate)
+
+metadata_samples2 <- metadata_samples2 %>%
+  select(file_name, sample)
+
+#Clean your metadata
+library(stringr)
+metadata_samples2 <- as.data.frame(
+  apply(metadata_samples2, 2, function(x) gsub("\\s+", "", x)))
+
+#Fusion with the normalized matrix
+DM2 <- DM_i5 %>% 
+  left_join(metadata_samples2, by = "file_name")
+DM2$file_name <- NULL
+
+#Calculate the medians of the QC samples
+feature_median_per_sample <- DM2 %>%
+  group_by(sample) %>%
+  summarise(across(starts_with("FT"), median, na.rm = TRUE))
+
+#Calculate the MAD of the QC samples
+feature_mad_per_sample <- DM2 %>%
+  group_by(sample) %>%
+  summarise(across(starts_with("FT"), mad, na.rm = TRUE))
+
+#Keep only the pooled QCs
+feature_median_QC <- subset(feature_median_per_sample, sample == "InterbatchQCR01")
+feature_mad_QC <- subset(feature_mad_per_sample, sample == "InterbatchQCR01")
+
+#Calculate the RSD
+RSD_QC <- cbind(
+  feature_mad_QC[1],
+  round((1.4826 * feature_mad_QC[-1]) / feature_median_QC[-1] * 100, 1)
+)
+
+#Creat an histogram with the RSD
+feature_names <- RSD_QC[, 1]
+RSD_values <- as.numeric(RSD_QC[, -1])
+
+RSD_df <- data.frame(
+  Feature = feature_names,
+  RSD = RSD_values
+)
+
+library(ggplot2)
+pdf(file.path(output_path, 
+              "RSD_after_SERRF_QC_Interbatch.pdf"), width = 14, height = 10)
+ggplot(RSD_df, aes(x = RSD)) +
+  # histogram
+  geom_histogram(
+    bins = 50,
+    fill = "#4C78A8",
+    color = "white",
+    linewidth = 0.2
+  ) +
+  geom_vline(
+    xintercept = 50,
+    linetype = "dashed",
+    color = "black",
+    linewidth = 0.5
+  ) +
+  
+  labs(
+    x = "RSD in QC samples (%)",
+    y = "Number of features"
+  ) +
+  
+  theme_classic(base_size = 14) +
+  theme(
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "plain"),
+    plot.title = element_text(face = "bold", hjust = 0)
+  )
+
+dev.off()
+
+#How many features under each threshold? 
+RSD_summary <- table(cut(RSD_df$RSD,
+                         breaks = c(-Inf, 20, 30, 50, Inf),
+                         labels = c("0-20%", "20-30%", "30-50%", ">50%")))
+print(RSD_summary)
+# 0-20% 20-30% 30-50%   >50% 
+#3245      2      1      0 
+
+#Suppressed the features with an RSD>20%
+selected_columns <- colnames(RSD_QC)[RSD_QC[1, ] >= 20]
+selected_columns <- as.character(selected_columns)
+selected_columns <- as.list(selected_columns)
+
+DM_i5_filtered <- DM_i5[, !colnames(DM_i5) %in% selected_columns]
+DM_i5$FT01719
+DM_i5_filtered$FT01719
+#Save the final table
+write.table(
+  DM_i5_filtered,
+  file.path(output_path, "0_final_feature_table_after_SERRF_RSD20.txt"),
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+#Save environment
+save.image(
+  file = file.path(output_path, "myEnvironment2_RSD_after_SERRF.RData")
+)
+
+
+######3.c) Claculate RSD per sub-groups #####
+
+
+batch_qc_ids <- c("Batch1QC","Batch2QC","Batch3QC","Batch4QC")
+
+DM_QC_after <- DM_i5 %>%
+  left_join(metadata_samples, by = "file_name") %>%
+  filter(ESSENTIAL_sample_id %in% batch_qc_ids)
+
+
+compute_rsd <- function(df) {
+  
+  median_vals <- df %>%
+    summarise(across(starts_with("FT"), median, na.rm = TRUE))
+  
+  mad_vals <- df %>%
+    summarise(across(starts_with("FT"), mad, na.rm = TRUE))
+  
+  rsd <- (1.4826 * mad_vals) /
+    ifelse(median_vals == 0, NA, median_vals) * 100
+  
+  return(as.numeric(rsd))
+}
+
+
+RSD_list_after <- DM_QC_after %>%
+  group_split(ESSENTIAL_sample_id)
+
+names(RSD_list_after) <- unique(DM_QC_after$ESSENTIAL_sample_id)
+
+RSD_results_after <- lapply(RSD_list_after, compute_rsd)
+
+RSD_df_after <- do.call(cbind, RSD_results_after)
+colnames(RSD_df_after) <- names(RSD_results_after)
+RSD_df_after <- as.data.frame(RSD_df_after)
+
+RSD_summary_after <- do.call(rbind, lapply(names(RSD_df_after), function(batch) {
+  
+  tab <- table(cut(RSD_df_after[[batch]],
+                   breaks = c(-Inf, 20, 30, 50, Inf),
+                   labels = c("0-20%", "20-30%", "30-50%", ">50%")))
+  
+  data.frame(
+    batch = batch,
+    RSD_bin = names(tab),
+    n = as.numeric(tab)
+  )
+}))
+
+# Calcul proportions
+RSD_summary_after <- RSD_summary_after %>%
+  group_by(batch) %>%
+  mutate(prop = n / sum(n))
+
+#####4) Place back the NAs####
+
+NAs <- read_tsv(
+  file.path(
+    before_serrf_path,
+    "positions_na"
+  )
+)
+
+DM_i6 <- DM_i5_filtered
+
+for (i in seq_len(nrow(NAs))) {
+  
+  sample_i <- NAs$file_name[i]
+  feature_i <- NAs$feature[i]
+  
+  DM_i6[
+    DM_i6$file_name == sample_i,
+    feature_i
+  ] <- NA
+}
+
+head(NAs)
+head(DM_i6)
+
+DM_i6 %>%
+  filter(file_name == "20240101_MH_MALLMB02B4R1_C18_posneg_MeOH_QC_Batch4QC_R01_R1.mzML") %>%
+  select("FT17576")
+
+write.table(
+  DM_i6,
+  file.path(output_path, "feature_table_SERRF_RSD20_with_NAs.txt"),
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+
+#Save environment
+save.image(
+  file = file.path(output_path, "myEnvironment2_RSD_after_SERRF_NA.RData")
+)
