@@ -1,6 +1,6 @@
 # Data cleaning and normalization
 
-This repository contains the code used to perform quality control, filtering, imputation, and batch correction of the Full MS dataset.
+This repository contains the code used to perform quality control, filtering, imputation, and batch correction of the Full-scan dataset.
 
 The workflow is divided into three scripts that must be run sequentially:
 
@@ -8,11 +8,11 @@ The workflow is divided into three scripts that must be run sequentially:
 * `0B_App_SERRF.R`
 * `0C_Last_part_data_cleaning.R`
 
-The workflow starts from the full MS feature table generated during the XCMS preprocessing step and produces the final processed feature tables used for downstream statistical analyses.
+The workflow starts from the full-scan feature table generated during the XCMS preprocessing step and produces the final processed feature tables used for downstream statistical analyses.
 
 Input files:
 
-* Full MS feature table
+* Full-scan feature table
 * Sample metadata
 
 Intermediate files generated during the workflow:
