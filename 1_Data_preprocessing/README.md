@@ -6,7 +6,7 @@ This folder contains the preprocessing workflows used for the South Atlantic DOM
 
 Data preprocessing was performed in two independent steps:
 
-1. **Full MS data preprocessing**, performed locally on a workstation.
+1. **Full-scan data preprocessing**, performed locally on a workstation.
 2. **Data-dependent acquisition (DDA) data preprocessing**, performed on a high-performance computing cluster using SLURM.
 
 The scripts provided in this folder are reproducible but require the preparation of the raw data and metadata folders as indicated in each script.
@@ -19,7 +19,7 @@ https://www.ebi.ac.uk/metabolights/MTBLS14508
 
 At the end of this preprocessing stage, two independent feature tables are generated:
 
-* a feature table corresponding to the Full MS dataset;
+* a feature table corresponding to the Full-scan dataset;
 * a feature table corresponding to the DDA dataset.
 
 These two datasets are subsequently linked and compared using the workflow available in the folder:
