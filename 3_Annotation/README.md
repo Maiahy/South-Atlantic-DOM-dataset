@@ -1,6 +1,6 @@
 # CAMERA annotation
 
-This repository contains the code used to annotate isotopes and adducts in the Full MS dataset using the R package CAMERA.
+This repository contains the code used to annotate isotopes and adducts in the Full-scan dataset using the R package CAMERA.
 
 The workflow starts from the preprocessed object generated during the data preprocessing step (`1_Data_preprocessing`) and produces a table containing CAMERA annotations.
 
