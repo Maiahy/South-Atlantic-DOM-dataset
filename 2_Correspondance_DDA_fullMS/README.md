@@ -1,6 +1,6 @@
-# Correspondence between Full MS and DDA datasets
+# Correspondence between Full-scan and DDA datasets
 
-This folder contains the code used to link together the Full MS and DDA datasets using the R package **metabCombiner**.
+This folder contains the code used to link together the Full-scan and DDA datasets using the R package **metabCombiner**.
 
 The workflow follows the methodology described in the official metabCombiner vignette:
 
@@ -33,5 +33,5 @@ Correspondence tables are saved in:
 
 ## Notes
 
-This workflow was used to establish correspondences between features detected in the Full MS and DDA datasets prior to downstream analyses.
+This workflow was used to establish correspondences between features detected in the Full-scan and DDA datasets prior to downstream analyses.
 
